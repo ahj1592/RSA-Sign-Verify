@@ -1,0 +1,17 @@
+<IVIList>
+    <Brand>RENAULT</Brand>
+    <FileId>LGE_IVI_RENAULT_11045501_20200812095907</FileId>
+    <RegisterList>
+        <Register>
+            <IVI_Id>LG2I1FULLIV203100161</IVI_Id>
+            <IVI_HW>285J96011R</IVI_HW>
+            <IVI_Ref>259154152R</IVI_Ref>
+            <SW_Version>283C34746R</SW_Version>
+            <FCID>NULL</FCID>
+            <Region>NULL</Region>
+            <PemFile>LG2I1FULLIV203100161.pem</PemFile>
+            <ProductLine>NULL</ProductLine>
+            <MapComponentId>NULL</MapComponentId>
+        </Register>
+    </RegisterList>
+</IVIList>

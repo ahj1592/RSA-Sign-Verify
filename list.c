@@ -1,13 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "utils.h"
+#include <openssl/pem.h>
+#include "list.h"
 
 Data* Data_new(){
 	Data *data = NULL;
 	data = (Data *)malloc(sizeof(Data));
 	if (data != NULL){
-		data->name = (char *)malloc(sizeof(char) * 100);
+		data->name = (char *)calloc(100, sizeof(char));
+		
+		data->sender = (char *)calloc(100, sizeof(char));
+		data->receiver = (char *)calloc(100, sizeof(char));
+		data->digest = (unsigned char *)malloc(SHA256_DIGEST_LENGTH * sizeof(unsigned char));
+		data->sig = (unsigned char *)malloc(256 * sizeof(unsigned char));
+		data->sig_len = 256;
 		data->next = NULL;
 	}
 	return data;
@@ -15,6 +22,9 @@ Data* Data_new(){
 
 void Data_free(Data *data){
 	free(data->name);
+	free(data->digest);
+	free(data->sender);
+	free(data->receiver);
 	free(data->next);
 	free(data);
 }
@@ -124,4 +134,33 @@ int Data_List_has_name(Data_List *data_list, const char *name){
 		data = data->next;
 	}
 	return -1;
+}
+
+int Data_List_msg_print(Data_List *data_list){
+	Data *data;
+	char mdString[SHA256_DIGEST_LENGTH*2+1];
+	if(data_list == NULL){
+		fprintf(stderr, "Cannot access the Data_List. Data_List is NULL.\n");
+		return -1;
+	}
+	
+	if((data = data_list->head) == NULL){
+		fprintf(stderr, "The Data_List is empty.\n");
+		return -1;
+	}
+
+	printf("==== List Display ====\n");
+	printf("List size: %d\n", data_list->size);
+	data = data_list->head;
+	while(data != NULL){
+		memset(mdString, 0, SHA256_DIGEST_LENGTH*2 + 1);
+		for(int i = 0; i < SHA256_DIGEST_LENGTH; i++){
+			sprintf(&mdString[i*2], "%02x", (unsigned int)(data->digest[i]));
+		}
+		printf("(%s, %s, %s)\n", data->sender, data->receiver, mdString);
+		data = data->next;
+	}
+	printf("\n==== List Display End ====\n\n");
+	//printf("%s\n", data->name);
+	return 0;
 }

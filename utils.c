@@ -74,3 +74,21 @@ int createKeys(char* username) {
     printf("done.\n");
     return 0;
 }
+
+RSA *loadPrivateKey(char *prikey_path){
+    FILE *fp_pri = NULL;
+    RSA *pri_rsa = NULL;
+    
+    // Read Private Key from file 
+    if((fp_pri = fopen(prikey_path, "r")) == NULL){
+        fprintf(stderr, "Cannot open private key from %s\n", prikey_path);
+        return NULL;
+    }
+
+    if((pri_rsa = PEM_read_RSAPrivateKey(fp_pri, NULL, NULL, NULL)) == NULL){
+        fprintf(stderr, "load failed [private key]\n");
+    }
+
+    if(fp_pri != NULL) fclose(fp_pri);
+    return pri_rsa;
+}

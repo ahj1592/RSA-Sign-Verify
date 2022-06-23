@@ -9,7 +9,7 @@ Data* Data_new(){
 	data = (Data *)malloc(sizeof(Data));
 	if (data != NULL){
 		data->name = (char *)calloc(100, sizeof(char));
-		
+		data->message = (char *)calloc(1024, sizeof(char));
 		data->sender = (char *)calloc(100, sizeof(char));
 		data->receiver = (char *)calloc(100, sizeof(char));
 		data->digest = (unsigned char *)malloc(SHA256_DIGEST_LENGTH * sizeof(unsigned char));
@@ -157,7 +157,11 @@ int Data_List_msg_print(Data_List *data_list){
 		for(int i = 0; i < SHA256_DIGEST_LENGTH; i++){
 			sprintf(&mdString[i*2], "%02x", (unsigned int)(data->digest[i]));
 		}
-		printf("(%s, %s, %s)\n", data->sender, data->receiver, mdString);
+		printf("sender: %s\n", data->sender);
+		printf("receiver: %s\n", data->receiver);
+		printf("digest: %s\n", mdString);
+		printf("message: %s\n\n", data->message);
+		
 		data = data->next;
 	}
 	printf("\n==== List Display End ====\n\n");

@@ -92,7 +92,7 @@ int main(){
 		if(Data_List_has_name(data_list, client_name) < 0){
 			printf("%s is not allowed user name\n", client_name);
 			send(newSocket, "Not Allowed", strlen("Not Allowed"), 0);
-			//continue;
+			continue;
 		}
 		else{
 			printf("%s is allowed user\n", client_name);
@@ -103,10 +103,10 @@ int main(){
 		while(1){
 			memset(buffer, 0, 1024);
 			result = recv(newSocket, buffer, 4, 0);
-			printf("%d, %s\n", result, buffer);
+			//printf("%d, %s\n", result, buffer);
 			if(result <= 0){
 				printf("1. Receiver Error.\n");
-				exit(1);
+				//exit(1);
 			}
 
 			if(strcmp(buffer, "exit") == 0){
@@ -115,16 +115,24 @@ int main(){
 			}
 
 			else if(strcmp(buffer, "send") == 0){
+				char message[1024];
 				unsigned char sig[256];
 				unsigned char digest[SHA256_DIGEST_LENGTH];
 				char mdString[SHA256_DIGEST_LENGTH*2+1];
 				char receiver[100];
+				int msg_len = 0;
 
+				memset(message, 0, 1024);
 				memset(sig, 0, 256);
 				memset(digest, 0, SHA256_DIGEST_LENGTH);
 				memset(mdString, 0, SHA256_DIGEST_LENGTH*2+1);
 				memset(receiver, 0, 100);
 
+				recv(newSocket, &msg_len, sizeof(int), 0);
+				recv(newSocket, message, msg_len, 0);
+				//printf("msg_len: %d\n", msg_len);
+				//printf("msg: %s\n", message);
+				
 				result = recv(newSocket, digest, SHA256_DIGEST_LENGTH, 0);
 				if(result < 0){
 					printf("receive digest failed.\n");
@@ -142,12 +150,13 @@ int main(){
 				for(int i = 0; i < SHA256_DIGEST_LENGTH; i++){
 					sprintf(&mdString[i*2], "%02x", (unsigned int)digest[i]);
 				}
-				printf("mdstring: %s\n", mdString);
-				printf("receiver: %s\n", receiver);
-				printf("clientname: %s\n", client_name);
+				//printf("mdstring: %s\n", mdString);
+				//printf("receiver: %s\n", receiver);
+				//printf("clientname: %s\n", client_name);
 
 				Data *msg = Data_new();
 				
+				strcpy(msg->message, message);
 				strcpy(msg->sender, client_name);
 				strcpy(msg->receiver, receiver);
 				memcpy(msg->sig, sig, 256);
@@ -156,21 +165,34 @@ int main(){
 
 				printf("%s %s\n", msg->sender, msg->receiver);
 				Data_List_append(msg_list, msg);
-				Data_List_msg_print(msg_list);
+				//Data_List_msg_print(msg_list);
 
 			}
 			else if(strcmp(buffer, "recv") == 0){
+				int msg_count = 0;
 				char mdString[SHA256_DIGEST_LENGTH*2+1];
 				Data_List_msg_print(msg_list);
 				Data *data = msg_list->head;
 
+				// count valid receiver
+				data = msg_list->head;
+				while(data != NULL){
+					if(strcmp(data->receiver, client_name) == 0){
+						msg_count += 1;
+					}
+					data = data->next;
+				}
+				send(newSocket, &msg_count, sizeof(int), 0);
+				
+				
+				data = msg_list ->head;
 				while(data != NULL){
 					if(strcmp(data->receiver, client_name) == 0){
 						memset(mdString, 0, SHA256_DIGEST_LENGTH*2+1);
 						for(int i = 0; i < SHA224_DIGEST_LENGTH; i++){
 							sprintf(&mdString[i*2], "%02x", (unsigned int)data->digest[i]);
 						}
-						printf("(%s, %s)\n", data->sender, mdString);
+						//printf("(%s, %s)\n", data->sender, mdString);
 						FILE *fp_pub = NULL;
 						RSA *pub_rsa = NULL;
 						char pubkey_path[115];
@@ -181,13 +203,26 @@ int main(){
         					fprintf(stderr, "load failed [public key]\n");
 							continue;
 						}
-						result = RSA_verify(NID_sha1, data->digest, strlen(data->digest), data->sig, data->sig_len, pub_rsa);
-						printf("verify result: %d\n", result);
-					}
-					else{
-						printf("a\n");
+						int verify_result = RSA_verify(NID_sha1, data->digest, strlen(data->digest), data->sig, data->sig_len, pub_rsa);
+						//printf("verify result: %d\n", verify_result);
+						
+						// send message
+						int msg_len = strlen(data->message);
+						if(verify_result == 1){
+							msg_len = strlen(data->message);
+							send(newSocket, &msg_len, sizeof(msg_len), 0);
+							send(newSocket, data->message, msg_len, 0);
+						}
+						else{
+							msg_len = strlen("not verified");
+							send(newSocket, &msg_len, sizeof(msg_len), 0);
+							send(newSocket, "not verified", msg_len, 0);
+						}
+						
 					}
 					data = data->next;
+
+
 				}
 			}
 			else{

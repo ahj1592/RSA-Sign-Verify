@@ -10,7 +10,6 @@
 #include "list.h"
 #include "utils.h"
 
-#define PORT 9998
 
 int main(){
 	int clientSocket, ret;
@@ -42,20 +41,20 @@ int main(){
 	serverAddr.sin_port = htons(PORT);
 	serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-	ret = connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
-	if(ret < 0){
+	if((ret = connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr))) < 0){
 		printf("[-]Error in connection.\n");
 		exit(1);
 	}
 
+
 	printf("[+]Connected to Server.\n");
-	if(send(clientSocket, client_name, strlen(client_name), 0) < 0){
+	if((ret = send(clientSocket, client_name, strlen(client_name), 0) < 0)){
 		printf("Send failed\n");
 		exit(1);
 	}
 	
 	memset(buffer, 0, 1024);
-	if(recv(clientSocket, buffer, 1024, 0) < 0){
+	if((ret = recv(clientSocket, buffer, 1024, 0) < 0)){
 		printf("Receive Error\n");
 		close(clientSocket);
 		exit(1);
@@ -69,13 +68,12 @@ int main(){
 
 	while(1){
 		int menu = 0;
-		//printf("Client: (quit to \":exit\"): ");
-		printf("\n===== MENU =====.\n");
+		printf("\n======== MENU ========\n");
 		printf("1. Create RSA Key pairs.\n");
 		printf("2. Send Message.\n");
 		printf("3. Receive Message.\n");
 		printf("0. Quit\n");
-		printf("input number: ");
+		printf("input number>>>");
 		scanf("%d", &menu);
 
 		if(menu == 0){
@@ -96,24 +94,23 @@ int main(){
 			// send message
 
 			getchar();
-			printf("Input Message: ");
+			printf("2.1 Input Message>>>");
 			memset(buffer, 0, 1024);
 			fgets(buffer, 1024, stdin);
 			buffer[strlen(buffer) - 1] = '\0';
-			printf("%s\n", buffer);
 
-			printf("Input receiver: ");
+			printf("2.2 Input receiver>>>");
 			scanf("%s", receiver);
-			printf("%s\n", receiver);
 
 			sprintf(prikey_path, "%s_prikey.pem", client_name);
     		sprintf(pubkey_path, "%s_pubkey.pem", client_name);
 
 			printf("Load %s's private key....\n", client_name);
+			
 			FILE *fp_pri = NULL;
 			RSA *pri_rsa = NULL;
 			if((fp_pri = fopen(prikey_path, "r")) == NULL){
-				printf("Cannot open private key file.\n");
+				printf("Cannot open private key from %s.\n", prikey_path);
 				continue;
 			}
 
@@ -121,43 +118,88 @@ int main(){
 				fprintf(stderr, "load failed [private key]\n");
 				continue;
 			}
-    		if(fp_pri != NULL) fclose(fp_pri);
+
+    		if(fp_pri != NULL) {
+				fclose(fp_pri);
+			}
 			
+
+			/*
+			RSA *pri_rsa = NULL;
+			if((pri_rsa = loadPrivateKey(prikey_path)) == NULL){
+				fprintf(stderr, "Cannot load private key.");
+				continue;
+			}
+			*/
+
+
+			printf("Successfully load private key.\n");
+
+
 			printf("Digest message process...\n");
 			SHA256_CTX ctx;
-			SHA256_Init(&ctx);
-			SHA256_Update(&ctx, buffer, strlen(buffer));
-			SHA256_Final(digest, &ctx);
+			if((ret = SHA256_Init(&ctx)) != 1){
+				fprintf(stderr, "Error in SHA initialization.\n");
+				continue;
+			}
+			if((ret = SHA256_Update(&ctx, buffer, strlen(buffer))) != 1){
+				fprintf(stderr, "Error in SHA Update.\n");
+				continue;
+			}
 
+			if((ret = SHA256_Final(digest, &ctx)) != 1){
+				fprintf(stderr, "Error in SHA Final.\n");
+				continue;
+			}
+
+			// save as hexacode
 			for(int i = 0; i < SHA256_DIGEST_LENGTH; i++){
 				sprintf(&mdString[i*2], "%02x", (unsigned int)digest[i]);
 			}
 				
-			printf("SHA256 digest: %s\n", mdString);
-			printf("length: %ld\n", strlen(mdString));
 			unsigned char *sig = NULL;
 			unsigned int sig_len = 0;
 
-			sig = malloc(RSA_size(pri_rsa));
-			if(sig == NULL) {
-				printf("sig is NULL\n");
+			if((sig = malloc(RSA_size(pri_rsa))) == NULL){
+				fprintf(stderr, "SIG Memory allocation failed.\n");
 				continue;
 			}
 
 			if(RSA_sign(NID_sha1, digest, sizeof(digest), sig, &sig_len, pri_rsa) != 1){
-				printf("sign process failed\n");
+				fprintf(stderr, "sign process failed\n");
+				continue;
 			}
-			send(clientSocket, "send", strlen("send"), 0);
+
+			if(send(clientSocket, "send", strlen("send"), 0) < 0){
+				fprintf(stderr, "send failed (1).\n");
+			}
+			
+			int buf_len = 0;
+			buf_len = strlen(buffer);
+			send(clientSocket, &buf_len, sizeof(int), 0);
+			send(clientSocket, buffer, strlen(buffer), 0);
+
 			send(clientSocket, digest, SHA256_DIGEST_LENGTH, 0);
 			send(clientSocket, sig, 256, 0);
 			send(clientSocket, receiver, strlen(receiver), 0);
-			
-
 		}
 		else if(menu == 3){
-			// receiver message
+			// receive message
 			send(clientSocket, "recv", strlen("recv"), 0);
 
+			int msg_count = 0;
+			int msg_len = 0;
+			char msg[1024];
+			recv(clientSocket, &msg_count, sizeof(msg_count), 0);
+			if(msg_count == 0){
+				printf("No messages.\n");
+			}
+			for(int i = 0; i < msg_count; i++){
+				memset(msg, 0, 1024);
+				recv(clientSocket, &msg_len, sizeof(msg_len), 0);
+				recv(clientSocket, msg, msg_len, 0);
+				printf("%s\n", msg);
+			}
 		}
 
 

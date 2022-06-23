@@ -1,7 +1,8 @@
 typedef struct data{
 	char *name;
-	char* sender;
-	char* receiver;
+	char *message;
+	char *sender;
+	char *receiver;
 	unsigned char *digest;
 	unsigned char *sig;
 	unsigned int sig_len;

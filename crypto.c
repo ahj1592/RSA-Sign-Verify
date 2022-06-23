@@ -5,9 +5,6 @@
 #include <string.h>
 
 #define KEY_LENGTH  2048
-//#define PUB_EXP     3
-#define PRINT_KEYS 1
-#define WRITE_TO_FILE 1
 
 int createRSAKeys(char* username) {
 
@@ -73,54 +70,9 @@ int createRSAKeys(char* username) {
     if(pri != NULL) BIO_free_all(pri);
     if(pri_key != NULL) free(pri_key);
     if(pub_key != NULL) free(pub_key);
+    if(fp_pri != NULL) free(fp_pri);
+    if(fp_pub != NULL) free(fp_pub);
     if(err != NULL) free(err);
 
     return 0;
-}
-
-int encrypt_decrypt(char *username){
-    int ret = 0;
-    FILE *fp_pri = NULL, *fp_pub = NULL;
-    RSA *pri_rsa = NULL, *pub_rsa = NULL;
-
-    char prikey_path[115];
-    char pubkey_path[115];
-
-    sprintf(prikey_path, "%s_prikey.pem", username);
-    sprintf(pubkey_path, "%s_pubkey.pem", username);
-
-    if((fp_pri = fopen(prikey_path, "rb")) == NULL){
-        printf("Cannot open file [%s]\n", prikey_path);
-        ret = -1;
-        goto free_encrypt_decrypt;
-    }
-
-    if((fp_pub = fopen(pubkey_path, "rb")) == NULL){
-        printf("Cannot open file [%s]\n", pubkey_path);
-        ret = -1;
-        goto free_encrypt_decrypt;
-    }
-
-    if((pri_rsa = PEM_read_RSAPrivateKey(fp_pri, NULL, NULL, NULL)) == NULL){
-        printf("Cannot read private key.\n");
-        ret = -1;
-        goto free_encrypt_decrypt;
-    }
-
-    if((pub_rsa = PEM_read_RSAPublicKey(fp_pub, NULL, NULL, NULL)) == NULL){
-        printf("Cannot read public key.\n");
-        ret = -1;
-        goto free_encrypt_decrypt;
-    }
-
-    
-
-    free_encrypt_decrypt:
-    if(fp_pri != NULL) fclose(fp_pri);
-    if(fp_pub != NULL) fclose(fp_pub);
-    if(pri_rsa != NULL) RSA_free(pri_rsa);
-    if(pub_rsa != NULL) RSA_free(pub_rsa);
-
-    return ret;
-
 }
